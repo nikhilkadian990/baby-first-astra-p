@@ -77,6 +77,23 @@ def make_plots(root):
                                      interactions=bin_id, prediction_loss=loss['prediction_loss']))
     line_plot(directory / '03_lifetime_prediction_loss.png', lifetime, 'interactions', 'prediction_loss',
               lambda r: r['variant'], 'Online latent loss (moving target; not cross-model accuracy)', 'Latent MSE')
+    online = []
+    for run in sorted(root.glob('*/seed_*')):
+        events = {}
+        for log in sorted(run.glob('lifetime*.jsonl')):
+            for event in read_jsonl(log):
+                events[event['interactions']] = event
+        for event in events.values():
+            for field, value in event.items():
+                if field.startswith('online_loss_h'):
+                    online.append(dict(seed=int(run.name.split('_')[-1]), variant=run.parent.name,
+                                       horizon=int(field.split('_h')[-1]),
+                                       interactions=(event['interactions'] // 100) * 100, loss=value))
+    for horizon in sorted({r['horizon'] for r in online}):
+        line_plot(directory / f'03b_prequential_loss_h{horizon}.png',
+                  [r for r in online if r['horizon'] == horizon], 'interactions', 'loss',
+                  lambda r: r['variant'], f'Before-action forecasts, horizon {horizon}',
+                  'Realized latent MSE (EMA target changes over time)')
     contacts = [r for r in summaries if r['task'] == 'contact_discrimination' and r['evaluation_kind'] == 'transfer'
                 and r['adaptation_family'] == 'swapped_roles' and r['horizon'] == 1]
     line_plot(directory / '04_developmental_adaptation_curves.png',

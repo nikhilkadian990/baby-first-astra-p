@@ -45,6 +45,10 @@ Learning uses AdamW, gradient clipping, fixed update intervals and a fixed numbe
 
 The fixed FIFO memory stores copied original `uint8` observation fragments, actions, environment seed, episode, start timestep and previous action. Capacity is 128 fragments by default; oldest evidence is evicted. The current sliding window is separate and bounded. No acting-time replay retrieval exists. Default batches contain one current fragment plus up to three uniformly sampled FIFO fragments without replacement. Missing replay entries are filled by repeating current evidence so no-replay and early-training batches keep the same dimensions. Repeated evidence is not counted as a distinct replay sample.
 
+The live recurrent state also produces forecasts **before** each environment action. A bounded queue matches each forecast to its later observation and records `online_loss_h*` before learning from that new evidence. The queue stores predictions, not retrieved episodes, is cleared at world resets, and is included in checkpoint/resource accounting. Its length is bounded by the sum of evaluated horizons minus their count. EMA targets can drift between forecast and scoring, so these prequential losses are diagnostics rather than cross-age calibrated scores.
+
+`tables/development_resources.csv` reports lifetime compute/storage separately from adaptation resources. Evaluation context interactions and simulator transitions (including counterfactual simulation) are counted separately, not credited as adaptation experience.
+
 All variants use the same rollout length and fragment length, including short-only supervision. Default learning starts no earlier than interaction 16: 15 transitions are required to fill the fragment, then the four-step update schedule applies. Thus budgets 1/2/5/10 honestly contain no gradient updates; they must not be presented as successful rapid learning. Increase budgets rather than supplying free future observations or pretraining on evaluation data.
 
 ## Continuous development, checkpoints and resumption

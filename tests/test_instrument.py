@@ -149,6 +149,43 @@ class LearningTests(unittest.TestCase):
             self.assertTrue(all(torch.isfinite(p).all() for p in agent.parameters()))
         self.assertTrue(all(seq == events[0] for seq in events))
 
+    def test_before_action_forecasts_and_bounded_pending_state(self):
+        config = tiny_config()
+        agent = PredictiveAgent(config, 7)
+        stream = OnlineStream(config, 7)
+        stream._reset(agent)
+        preview = deepcopy(stream.policy)
+        plan = [preview.act() for _ in range(config['model']['rollout_horizon'])]
+        with torch.no_grad():
+            forecast = agent.predictor(agent.live_h, torch.tensor([plan]))[1][0]
+            future = stream.world.clone().step(plan[0])
+            target = agent.target(agent.pixels(future[None]))[0]
+            expected = float((forecast - target).square().mean())
+        event = stream.advance(agent)
+        self.assertAlmostEqual(event['online_loss_h1'], expected, places=6)
+        bound = sum(k - 1 for k in config['evaluation']['horizons'])
+        for _ in range(16):
+            stream.advance(agent)
+            self.assertLessEqual(len(stream.pending_predictions), bound)
+        self.assertGreaterEqual(stream.pending_prediction_bytes, 0)
+
+    def test_provenance_is_not_a_model_feature(self):
+        config = tiny_config()
+        first = PredictiveAgent(config, 7)
+        second = PredictiveAgent(config, 7)
+        world = World(config['world'], 71)
+        observations = [world.observe()]
+        actions = [i % 5 for i in range(window_length(config))]
+        for action in actions:
+            observations.append(world.step(action))
+        evidence = fragment(observations, actions, 71, 0, 0, 0)
+        changed = deepcopy(evidence)
+        changed['metadata'][:3] = [99, 123, 456]
+        a, b = first.update(evidence), second.update(changed)
+        self.assertEqual(a, b)
+        for key, value in first.state_dict().items():
+            torch.testing.assert_close(value, second.state_dict()[key], rtol=0, atol=0)
+
     def test_resume_exact_model_and_evidence(self):
         config = tiny_config()
         agent = PredictiveAgent(config, 7)

@@ -100,6 +100,11 @@ def evaluate_checkpoint(path, output=None):
                     append_jsonl(output / 'probes.jsonl', row)
             resources = dict(row_base, **agent.resources(), adaptation_seconds=stream.seconds,
                              evaluation_seconds=seconds, evaluation_forward_macs=cost,
+                             evaluation_context_interactions=2 * config['evaluation']['probes'] * (
+                                 3 + config['learning']['burn_in'] + config['learning']['unroll']),
+                             evaluation_simulator_transitions=2 * config['evaluation']['probes'] * (
+                                 3 + config['learning']['burn_in'] + config['learning']['unroll'] +
+                                 3 * config['model']['rollout_horizon']),
                              adaptation_interactions=stream.interactions,
                              pending_prediction_bytes=stream.pending_prediction_bytes,
                              live_evidence_bytes=stream.live_evidence_bytes)

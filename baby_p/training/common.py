@@ -151,10 +151,31 @@ class OnlineStream:
             self.world = None  # A declared distribution change is also an episode boundary.
         if self.world is None or self.world.t >= self.config['world']['episode_steps']:
             self._reset(agent)
+        # Precommit the random action sequence without consuming its real RNG.
+        # No future observations or privileged physics are used for forecasting.
+        preview = deepcopy(self.policy)
+        plan = [preview.act() for _ in range(self.config['model']['rollout_horizon'])]
+        with torch.no_grad():
+            predictions = agent.predictor(agent.live_h, torch.tensor([plan], device=agent.device))
+        if not hasattr(self, 'pending_predictions'):
+            self.pending_predictions = []
+        # Discard forecasts that would cross an independent-world reset.
+        if self.world.t == 0:
+            self.pending_predictions.clear()
+        for horizon in self.config['evaluation']['horizons']:
+            self.pending_predictions.append((self.world.t + horizon, horizon,
+                                             predictions[horizon][0].cpu().numpy().copy()))
         action = self.policy.act()
+        if action != plan[0]:
+            raise AssertionError('Exploration violated its precommitted action sequence')
         if len(self.actions) == self.actions.maxlen:
             self.previous_before_window = self.actions[0]
         observation = self.world.step(action)
+        with torch.no_grad():
+            target = agent.target(agent.pixels(observation[None]))[0].cpu().numpy()
+        self.online_losses = {f'online_loss_h{k}': float(np.mean((prediction - target) ** 2))
+                              for due, k, prediction in self.pending_predictions if due == self.world.t}
+        self.pending_predictions = [item for item in self.pending_predictions if item[0] > self.world.t]
         self.actions.append(action)
         self.observations.append(observation)
         self.interactions += 1

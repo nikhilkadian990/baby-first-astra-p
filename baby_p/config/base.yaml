@@ -1,0 +1,44 @@
+seeds: [11, 29, 47]
+output: baby_p/results
+checkpoint_dir: baby_p/checkpoints
+threads: 1
+device: cpu
+world:
+  grid: 9
+  cell_pixels: 3
+  objects: 5
+  episode_steps: 192
+model:
+  latent: 32
+  hidden: 64
+  mode: recurrent
+  horizons: [1, 4, 8]
+  rollout_horizon: 8
+learning:
+  lr: 0.0003
+  weight_decay: 0.00001
+  ema: 0.99
+  variance_weight: 1.0
+  covariance_weight: 0.04
+  variance_floor: 0.5
+  grad_clip: 1.0
+  update_every: 4
+  updates_per_event: 1
+  batch_size: 4
+  burn_in: 4
+  unroll: 4
+memory:
+  capacity: 128
+  store_every: 8
+training:
+  interactions: 12000
+  checkpoints: [400, 4000, 12000]
+  shift_at: 8000
+evaluation:
+  budgets: [0, 1, 2, 5, 10, 20, 40, 80, 160, 320]
+  families: [new_appearance, swapped_roles, shape, position, layout, background, identity, trajectory, combined]
+  probes: 40
+  horizons: [1, 4, 8]
+  criterion: 0.75
+  bootstrap_samples: 2000
+  replay_policy: clear

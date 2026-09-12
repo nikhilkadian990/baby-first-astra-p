@@ -101,6 +101,7 @@ def evaluate_checkpoint(path, output=None):
             resources = dict(row_base, **agent.resources(), adaptation_seconds=stream.seconds,
                              evaluation_seconds=seconds, evaluation_forward_macs=cost,
                              adaptation_interactions=stream.interactions,
+                             pending_prediction_bytes=stream.pending_prediction_bytes,
                              live_evidence_bytes=stream.live_evidence_bytes)
             append_jsonl(output / 'resources.jsonl', resources)
         del agent

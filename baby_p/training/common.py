@@ -197,11 +197,17 @@ class OnlineStream:
         self.seconds += time.perf_counter() - start_time
         return dict(interactions=self.interactions, episode=self.episode,
                     environment_seed=self.environment_seed, family=self.family,
-                    action=action, episode_t=self.world.t, losses=losses)
+                    action=action, episode_t=self.world.t, losses=losses,
+                    pending_prediction_bytes=sum(p.nbytes + 16 for _, _, p in self.pending_predictions),
+                    **self.online_losses)
 
     @property
     def live_evidence_bytes(self):
         return sum(o.nbytes for o in self.observations) + len(self.actions) * 8
+
+    @property
+    def pending_prediction_bytes(self):
+        return sum(p.nbytes + 16 for _, _, p in getattr(self, 'pending_predictions', []))
 
 
 def window_length(config):

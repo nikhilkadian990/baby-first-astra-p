@@ -33,8 +33,8 @@ def train(config, seed, variant='p', resume=None):
         if stream is None:
             stream = OnlineStream(config, seed)
     else:
-        if (run / 'manifest.json').exists():
-            raise FileExistsError(f'{run} exists; use --resume or a new output directory')
+        if (run / 'manifest.json').exists() or list(directory.glob('*.pt')):
+            raise FileExistsError(f'{run} or {directory} exists; use --resume or new output/checkpoint directories')
         agent = ReactiveBaseline(config, seed) if config['model']['mode'] == 'reactive' else PredictiveAgent(config, seed)
         stream = OnlineStream(config, seed)
         write_json(run / 'manifest.json', manifest(config, seed, variant))
@@ -44,8 +44,12 @@ def train(config, seed, variant='p', resume=None):
     for step, label in labels.items():
         if (directory / f'{label}.pt').exists():
             paths[step] = str(directory / f'{label}.pt')
-    # A resumed suffix gets its own log; old observations are not silently duplicated.
-    log = run / ('lifetime.jsonl' if not resume else f'lifetime_resume_{stream.interactions}.jsonl')
+    # Retain each resumed suffix, including repeated recoveries from one checkpoint.
+    if resume:
+        attempt = len(list(run.glob('lifetime_resume_*.jsonl')))
+        log = run / f'lifetime_resume_{attempt:06d}_{stream.interactions}.jsonl'
+    else:
+        log = run / 'lifetime.jsonl'
     if log.exists():
         raise FileExistsError(f'Log already exists: {log}')
     log.touch()
@@ -64,6 +68,7 @@ def train(config, seed, variant='p', resume=None):
             print(f'{variant} seed={seed}: {label} at {stream.interactions}', flush=True)
     write_json(run / 'resources.json', dict(agent.resources(), interactions=stream.interactions,
                                           live_evidence_bytes=stream.live_evidence_bytes,
+                                          pending_prediction_bytes=stream.pending_prediction_bytes,
                                           train_seconds=stream.seconds))
     write_json(run / 'checkpoints.json', paths)
     return paths

@@ -117,7 +117,7 @@ class PredictiveAgent(nn.Module):
             raise FloatingPointError('Nonfinite learning loss')
         self.optimizer.zero_grad(set_to_none=True)
         loss.backward()
-        grad = nn.utils.clip_grad_norm_(self.parameters_for_learning(), l['grad_clip'])
+        grad = nn.utils.clip_grad_norm_(self.parameters_for_learning(), l['grad_clip'], error_if_nonfinite=True)
         self.optimizer.step()
         with torch.no_grad():
             for target_p, online_p in zip(self.target.parameters(), self.encoder.parameters()):

@@ -119,7 +119,15 @@ def analyze(root, config):
     write_csv(root / 'tables' / 'evaluation.csv', summaries)
     write_csv(root / 'tables' / 'adaptation.csv', curves)
     write_csv(root / 'tables' / 'resources.csv', resources)
-    write_json(root / 'analysis.json', dict(summaries=summaries, curves=curves, resources=resources))
+    developmental_resources = []
+    for path in sorted(root.glob('*/seed_*/resources.json')):
+        with path.open() as handle:
+            resource = json.load(handle)
+        resource.update(variant=path.parent.parent.name, seed=int(path.parent.name.split('_')[-1]))
+        developmental_resources.append(resource)
+    write_csv(root / 'tables' / 'development_resources.csv', developmental_resources)
+    write_json(root / 'analysis.json', dict(summaries=summaries, curves=curves, resources=resources,
+                                          developmental_resources=developmental_resources))
     ages = {r['age']: r['checkpoint'] for r in curves if r['variant'] == 'p' and r['age'] > 0}
     early = ages[min(ages)] if ages else 'early'
     late = ages[max(ages)] if ages else 'late'

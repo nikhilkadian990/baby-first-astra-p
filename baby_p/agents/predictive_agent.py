@@ -180,4 +180,17 @@ class PredictiveAgent(nn.Module):
             if snapshot.get('cuda_rng') is not None and torch.cuda.is_available():
                 torch.cuda.set_rng_state_all(snapshot['cuda_rng'])
         elif snapshot['config']['evaluation']['replay_policy'] == 'retain':
-            agent.memory.load_state
+            agent.memory.load_state_dict(snapshot['memory'])
+        return agent
+
+    def resources(self):
+        optimizer_bytes = sum(v.numel() * v.element_size()
+                              for state in self.optimizer.state.values()
+                              for v in state.values() if torch.is_tensor(v))
+        return dict(self.stats,
+                    trainable_parameters=sum(p.numel() for p in self.parameters_for_learning()),
+                    total_parameters=sum(p.numel() for p in self.parameters()),
+                    parameter_bytes=sum(p.numel() * p.element_size() for p in self.parameters()),
+                    optimizer_bytes=optimizer_bytes, memory_items=len(self.memory.items),
+                    memory_capacity=self.memory.capacity, evidence_bytes=self.memory.bytes,
+                    hidden_bytes=0 if self.live_h is None else self.live_h.numel() * self.live_h.element_size())

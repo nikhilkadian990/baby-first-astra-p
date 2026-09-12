@@ -15,7 +15,9 @@ def appearance(role, family, rng):
         colors = [3, 4, 5]
     if family == 'history_alias':
         colors = [0, 1, 2]
-    return int(rng.choice(colors))
+    # Consume exactly one draw even for a singleton palette: downstream layout RNG
+    # must not accidentally encode the role through differing random draw counts.
+    return int(colors[int(rng.random() * len(colors))])
 
 
 def specification(seed, family, grid, count):

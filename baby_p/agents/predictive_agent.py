@@ -172,7 +172,7 @@ class PredictiveAgent(nn.Module):
             agent.optimizer.load_state_dict(snapshot['optimizer'])
             agent.memory.load_state_dict(snapshot['memory'])
             agent.rng.bit_generator.state = snapshot['rng']
-            agent.live_h = snapshot['live_h']
+            agent.live_h = None if snapshot['live_h'] is None else snapshot['live_h'].to(agent.device)
             agent.stats = dict(snapshot['stats'])
             torch.set_rng_state(snapshot['torch_rng'].cpu())
             np.random.set_state(snapshot['numpy_rng'])

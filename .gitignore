@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+baby_p/checkpoints/*
+!baby_p/checkpoints/.gitkeep
+baby_p/results/*
+!baby_p/results/.gitkeep
